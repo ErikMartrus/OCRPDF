@@ -1,21 +1,41 @@
 #Importamos aquí la librería de poppler para poder tratar las imagenes
 import shutil
 
+#Importamos la biblioteca de Python para utilizar Tensorflow
+import pip
+import tensorflow as tf
+from tensorflow import keras
+import gensim
+#De la librería Gensim importamos los métodos para aprender a detectar 'phrases'. La librería Gensim está
+#hecha para encontrar phrases que son bigramas pero no trigramas. Si se quieren trigramas los phrases bigramas
+#se pueden convertir en un token y luego volver a repetir el proceso. También se pueden aplicar los métodos
+#explicados en el apartado 2.
+
+from gensim.models.phrases import Phraser
+from gensim.models import Phrases
+from pandas import read_csv
+
+import csv
+import numpy
+import numpy as np
+
+
 from numpy.distutils.fcompiler import none
 import math
 #Importamos las librerias necesarias para realizar el OCR
 import cv2
 import pytesseract
+import csv
 #Por último añadimos los imports de las librerias necesarias para la creacion de los vectores identificativos
 
 import nltk
+import pandas as pd
 import gensim
 import re
 from collections import Counter
 from nltk import word_tokenize, pos_tag
 from nltk.util import ngrams
 from nltk.collocations import *
-
 
 #Con este último import, importamos el método que crea un diccionario con la frecuencia de aparición de los elementos en fgggea lista
 #importamos las librerias de wordcloud
@@ -27,6 +47,8 @@ from pdf2image.exceptions import(
     PDFPageCountError,
     PDFSyntaxError
 )
+
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract'
 #Importamos la libreria os para la creacion y eliminacion de directorios
 #mkdir nos permite crear archivos, y si ponemos ".", hacemos referencia al directorio en el que estamos
 import os
@@ -50,6 +72,7 @@ lstDir = os.walk(path)
 for root,dirs,ficheros in lstDir:
     for fichero in ficheros:
         (nombreFichero, extension) = os.path.splitext(fichero)
+        print(extension)
         if(extension == ".pdf"):
             lstFiles.append(nombreFichero+extension)
 
@@ -153,7 +176,7 @@ for proyect in lstFiles:
     textoUnido = open(proyect+'salidaUnida.txt', 'r')
     headline = textoUnido.read()
     word_candidates = headline.split()
-
+    #nltk.download(), se ha de ejecutar siempre la primera vez que se ejecuta
 #Número de veces que los candidatos a palabra aparecen en el texto
     print("CALCULO MÉTODO SPLIT: ", Counter(word_candidates), "\n")
 
@@ -217,6 +240,102 @@ for proyect in lstFiles:
 
 
     stopwords=[]
+
+# Los tokens inicial y final no pueden ser etiquetados con ninguno de los siguientes PoS
+    no_pos_in = ['DT', 'IN', 'PRP', 'CC', 'CD', 'MD', 'VBG', 'VBD', 'RP']
+
+
+# La función filter_collocation_candidates se ha modificado. Si no se ha elegido la opción de filtrar
+# con stopwords, la función retorna la lista de candidatos a colocación que superan el test definido
+# por la función good_PoS_candidate.
+
+# La función good_PoS_candidate comprueba que el candidato a colocación no tiene un token inicial o final
+# etiquetado con una etiqueta de la lista anterior. La función realiza lo siguiente:
+# 1. Etiqueta los constituyentes del candidato a colocación con un PoS tagger
+# 2. Comprueba que ni la etiqueta de PoS del token inicial ni la etiqueta de PoS del token final están en la lista
+# no_pos_in
+
+    def good_PoS_candidate(candidate):
+        test = True
+        tokens = list(candidate)  # Convertimos la tupla del candidato en una lista de tokens;
+        # tokens = ['and', 'reason']
+        tagged_tokens = nltk.pos_tag(tokens)  # PoS tagging [('calling', 'VBG'), ('everyone', 'NN')]
+        if tagged_tokens[0][1] in no_pos_in or tagged_tokens[-1][1] in no_pos_in:
+            test = False
+        return test
+
+
+    def filter_collocation_candidates(candidates):
+        # Si hemos cargado una lista de stopwords
+        if len(stopwords) > 0:
+            # Creamos una lista de candidatos que pasan el test de stopwords
+            col_candidates_filtered = [c for c in candidates if good_stw_candidate(c) == True]
+        # Si no se filtra por stopwords,
+        else:
+            # Creamos una lista de candidatos que pasan el test de PoS
+            col_candidates_filtered = [c for c in candidates if good_PoS_candidate(c) == True]
+        return col_candidates_filtered
+
+
+    # La función get_n_and_cn llama a la función patterns_and_parser para definir los patterns sintácticos de N y CN, y
+    # también los parsers que construirán estos nodos en el árbol
+
+    def patterns_and_parser():
+        # Definición de los patterns sintácticos de un nodo N. La hoja de un nodo N es un nombre en singular (NN)
+        # o en plural (NNS)
+        n_patterns = """
+                  N: {<NN>|<NNS>}
+                  """
+        # Definición de los patterns sintácticos de un nodo CN. Las hojas de un nodo CN son dos nombres en singular
+        cn_patterns = """
+                  CN: {<NN> <NN>}
+                  """
+        # Definición del parser que creará los nodos N del árbol
+        n_parser = nltk.RegexpParser(n_patterns)
+        # Definición del parser que creará los nodos CN del árbol
+        cn_parser = nltk.RegexpParser(cn_patterns)
+        return n_patterns, cn_patterns, n_parser, cn_parser
+
+
+    def get_string_form(tuple_list):
+        words = [cti[0] for cti in tuple_list]
+        string_form = "_".join(words)
+        return string_form
+
+
+    def get_n_and_cn(tagged_tokens):
+        # Definir patterns sintácticos y parser
+        n_patterns, cn_patterns, n_parser, cn_parser = patterns_and_parser()
+        # Creación de los árboles con los nodos N
+        n_tree = n_parser.parse(tagged_tokens)
+        # Creación de los árboles con los nodos CN
+        cn_tree = cn_parser.parse(tagged_tokens)
+        # Listado de las hojas de los nodos N
+        n_leaves = [s.leaves() for s in n_tree.subtrees() if s.label() == 'N']  # Lista d hojas N. Una hoja es una lista
+        # de tuplas (token, PoS)
+        # (e.g: [[('philosophers', 'NNS')],...])
+        # Listado de las hojas de los nodos CN
+        cn_leaves = [s.leaves() for s in cn_tree.subtrees() if s.label() == 'CN']  # Lista de hojas CN
+        # (e.g: [('world', 'NN'),
+        #        ('event', 'NN')],...])
+        # Se unen los dos listados
+        n_cn_tuples = n_leaves + cn_leaves
+        # Conversión de las tuplas que representan las hojas al término
+        n_and_cn = [get_string_form(c) for c in
+                    n_cn_tuples]  # e.g: [('world', 'NN'), ('event', 'NN')] -> world_event
+        return n_and_cn
+
+
+    # Tokenización del texto en minúsculas
+    tokens = [w for w in word_tokenize(headline.lower())]
+    # PoS tagging de los tokens
+    tagged_tokens = nltk.pos_tag(tokens)
+    # Lista de términos que forman un N o un CN
+    n_and_cn = get_n_and_cn(tagged_tokens)
+    print("A VER QUE SACAMOS POR AQUI",n_and_cn)
+
+
+
 #Importamos la lista que esta en la libreria NLTK
     stopwords=nltk.corpus.stopwords.words('spanish')
 
@@ -253,12 +372,22 @@ for proyect in lstFiles:
 
 
     collocations = get_collocations(headline.lower(),300)
+    collocations = np.array(collocations)
+    with open(proyect+"salida.csv", 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        for row in range(0, collocations.shape[0]):
+            myList = []
+            myList.append(collocations[row])
+            writer.writerow(myList)
+    shutil.copy(proyect + 'salida.csv', nombredirectorio)
+    os.remove(proyect+ 'salida.csv')
     print("TERMINOS CANDIDATOS A SER COLOCACIONES", collocations)
 
 #creacion del word cloud
 
 
     word2display=" ".join([lu.replace(' ','_') for lu in collocations])
+    #print("WORD2DISPLAY VALE ESTO: ",word2display)
     wordcloud = WordCloud(background_color='white', max_font_size=500).generate(word2display)
     wordcloud.to_file(proyect+'salidaNube.png')
     shutil.copy(proyect + 'salidaNube.png', nombredirectorio)
@@ -271,4 +400,6 @@ for proyect in lstFiles:
         os.remove(borrador)
     print("SACAMOS LOS VALORES DE ESTA COSA", proyect+'salidaUnida.txt')
     shutil.copy(proyect + 'salidaUnida.txt', nombredirectorio)
+    #En Windows tenemos que cerrar el pdf de salida Unida para poder borrarlo
+    textoUnido.close()
     os.remove(proyect+'salidaUnida.txt')
