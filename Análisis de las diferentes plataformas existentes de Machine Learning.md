@@ -437,9 +437,483 @@ Se nos presenta fallos en la instalacion de los SDK.
 
   Una vez lo hemos añadido en las variables podemos ejecutar las siguientes intrucciones que aparecen en este enlace: https://cloud.google.com/sdk/docs/downloads-interactive?hl=es-419#windows
   
+  
+  
   ![image-20200408140236857](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200408140236857.png)
 
-Una de las dudas que se nos presenta es si los datos han de estar subidos en el storage de Google Cloud
+
+
+Tras instalar correctamente, ejecutamos los comandos *gcloud init*.
+
+Se presentan los siguientes resultados por ventana de comandos, donde tenemos que confirmar que debemos logearnos y demás. 
+
+![image-20200414095030767](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200414095030767.png)
+
+
+
+Tras esto podemos elegir entre los diferentes proyectos de los que disponemos. En nuestro caso como ya hemos mencionado anteriormente nuestro proyecto se llama tensorflow.
+
+![image-20200414095258169](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200414095258169.png)
+
+
+
+Tras instalar correctamente los SDKs hemos de asegurarnos que tenemos instalado tanto python y pip, y posteriormente instalamos ***virtualenv***. 
+Es una herramienta que sirve para crear entornos de Python aislados. Para verificar si ya tienes instalado `virtualenv`, ejecuta `virtualenv --version`.
+
+
+
+En el caso de que queramos crear un entorno de desarrollo aislado, creamos un entorno virtual nuevo en `virtualenv`. Por ejemplo, con el comando siguiente, se activa un entorno llamado `cmle-env`:
+
+![image-20200414130913986](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200414130913986.png)
+
+
+
+Siguiendo los pasos de este tutorial podemos seguir viendo los diferentes pasos a seguir para verificar los componentes del SDK de Google Cloud.
+
+Para esta verificación del SDK de Google Cloud están instalados, realizamos lo siguiente:
+
+​	Haz una lista de tus modelos:
+
+​	Ejecutando el comando *gcloud ai-platform models list*, destacar que podemos un endpoint, es una URL base que especifica la dirección de red de un servicio API. Un servicio puede tener múltiples puntos finales de servicio. Este servicio tiene el siguiente punto final de servicio y todos los URI a continuación son relativos a este punto final de servicio:  https://ml.googleapis.com`
+
+![image-20200414132949054](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200414132949054.png)
+
+
+
+
+
+Como podemos ver en el panel de control de nuestro proyecto podemos que ver que existe conectividad y solicitudes a la API.
+
+![image-20200415092204223](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200415092204223.png)
+
+
+
+A continuación probaremos un tutorial para comprobar el correcto funcionamiento.
+
+
+
+##### Tutorial.
+
+###### Configuración de entorno.
+
+Tras la correcta instalación de los SDKs de Google Cloud procederemos a realizar la configuración de entorno y eligimos una de las siguientes opciones para configurar nuestro entorno de manera local en macOS o en un entorno remoto en Cloud Shell. En nuestro caso al encontrarnos trabajando en Windows en este momento del proyecto lo realizaremos a través de Cloud Shell.
+
+Para ello:
+
+1. Abre [Google Cloud Platform Console](https://console.cloud.google.com/?hl=es-419).
+
+2. Haz clic en el botón **Activar Google Cloud Shell** en la parte superior de la ventana de la consola.
+
+   ![Activa Google Cloud Shell](https://cloud.google.com/shell/docs/images/shell_icon.png?hl=es-419)
+
+
+
+En el caso de ser usuario de macOS, es recomendable configurar tu entorno mediante la pestaña **MACOS** a continuación. Cloud Shell, que se muestra en la pestaña **CLOUD SHELL**, está disponible en macOS, Linux y Windows. Cloud Shell proporciona una forma rápida de probar AI Platform, pero no es adecuado para el trabajo de desarrollo continuo.
+
+Si accedemos a Google Cloud Shell desde nuestro proyecto, se nos indicara en que proyecto nos encontramos, en nuestro caso tensorflow y el identificador que le ha dado Google.
+
+![image-20200417085231038](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417085231038.png)
+
+
+
+- **NOTA:** En el caso desde el panel de inico deberemos configurar la herramienta de línea de comandos de `gcloud` a fin de usar el proyecto seleccionado.
+
+```sh
+gcloud config set project [selected-project-id]
+```
+
+en el que `[selected-project-id]` es el ID del proyecto ( omitiendo los corchetes).
+
+
+
+###### Descarga del código para este tutorial.
+
+Descargamos la muestra del repositorio de GitHub.
+
+1. Ingresamos el siguiente comando para descargar el archivo ZIP de muestra de AI Platform: 
+
+```
+wget https://github.com/GoogleCloudPlatform/cloudml-samples/archive/master.zip
+```
+
+Y aquí vemos el resultado que obtenemos por consola.
+
+![image-20200417090352058](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417090352058.png)
+
+
+
+2. Descomprimimos el archivo para extraer el directorio `cloudml-samples-master`.
+
+```.
+unzip master.zip.
+```
+
+Y podemos ver  como se descomprime de forma local.
+
+![image-20200417090630412](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417090630412.png)
+
+
+
+3. Navega al directorio `cloudml-samples-master > census > estimator`. Los comandos que aparecen en esta explicación deben ejecutarse desde el directorio `estimator`.
+
+```
+cd cloudml-samples-master/census/estimator
+```
+
+
+
+
+
+###### Obtenemos los datos de entrenamiento
+
+Los archivos de datos, `adult.data` y `adult.test`, se alojan en un depósito público de Cloud Storage. Para esta prueba usaremos las versiones en Cloud Storage que se sometieron a una limpieza trivial, en lugar de los datos de fuente originales.
+
+Podemos  leer los archivos directamente desde Cloud Storage o copiarlos en nuestro entorno local. Como ya hemos mencionado más de una vez nos interesa realizar la mayoría de procesos de forma local,  por ello descargaremos  las muestras de entrenamiento local y las subiremos a nuestro depósito de Cloud Storage a fin de realizar el entrenamiento en la nube.
+
+1. Descargamos los datos a un directorio de archivos local y configura las variables de modo que apunten a los archivos de datos descargados.
+
+```
+mkdir data
+gsutil -m cp gs://cloud-samples-data/ai-platform/census/data/* data/
+```
+
+
+
+<img src="C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417101521977.png" alt="image-20200417101521977" style="zoom:200%;" />
+
+
+
+2. Configuramos las variables `TRAIN_DATA` y `EVAL_DATA` en tus rutas de archivo locales. Por ejemplo, con los comandos siguientes, se establecen las variables en rutas locales.
+
+```
+TRAIN_DATA=$(pwd)/data/adult.data.csv
+EVAL_DATA=$(pwd)/data/adult.test.csv
+```
+
+Los datos que se almacenan en formato de valores separados por comas, como se muestra en la vista previa siguiente del archivo `adult.data`:
+
+```
+39, State-gov, 77516, Bachelors, 13, Never-married, Adm-clerical, Not-in-family, White, Male, 2174, 0, 40, United-States, <=50K
+50, Self-emp-not-inc, 83311, Bachelors, 13, Married-civ-spouse, Exec-managerial, Husband, White, Male, 0, 0, 13, United-States, <=50K
+38, Private, 215646, HS-grad, 9, Divorced, Handlers-cleaners, Not-in-family, White, Male, 0, 0, 40, United-States, <=50K
+53, Private, 234721, 11th, 7, Married-civ-spouse, Handlers-cleaners, Husband, Black, Male, 0, 0, 40, United-States, <=50K
+...
+```
+
+
+
+###### Instala dependencias.
+
+Si bien TensorFlow está instalado en Cloud Shell, debemos ejecutar el comando siguiente a fin de asegurarnos de que usamos la misma versión de TensorFlow que se requiere para el tutorial:
+
+```sh
+pip install --user tensorflow==1.14.*
+```
+
+![image-20200417103145260](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417103145260.png)
+
+
+
+Como vemos no hay ningún problema en la instalación, destacar que consultamos la versión de python de google cloud shell y podemos ver que es la 2.7.13
+
+
+
+###### Ejecutamos un trabajo de entrenamiento local
+
+Un trabajo de entrenamiento local carga tu programa de entrenamiento de Python y, luego, iniciamos un proceso de entrenamiento en un entorno similar al de un trabajo de entrenamiento en vivo en la nube de AI Platform.
+
+1. Especificamos un directorio de salida y configuramos una variable `MODEL_DIR`. Con el comando siguiente, establecemos `MODEL_DIR` en un valor de `output`.
+
+```
+MODEL_DIR=output
+```
+
+2. Como se recomienda borrar el contenido del directorio de salida por si aún contiene datos de una ejecución de entrenamiento anterior. Con el comando siguiente, se borran todos los datos del directorio `output`.
+
+```
+rm -rf $MODEL_DIR/*
+```
+
+
+
+3. Para ejecutar el entrenamiento de manera local, ejecutamos el siguiente comando:
+
+```
+gcloud ai-platform local train \
+    --module-name trainer.task \
+    --package-path trainer/ \
+    --job-dir $MODEL_DIR \
+    -- \
+    --train-files $TRAIN_DATA \
+    --eval-files $EVAL_DATA \
+    --train-steps 1000 \
+    --eval-steps 100
+```
+
+![image-20200417123028339](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417123028339.png)
+
+
+
+![image-20200417123058441](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200417123058441.png)
+
+Podemos ver datos de precisión, de perdidos y demás.
+
+ 
+
+###### Inspeccionamos los resultados con Tensorboard
+
+Para poder ver los resultados de la evaluación, podemos usar la herramienta de visualización llamada [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard). Con TensorBoard, podemos visualizar un grafo de TensorFlow,  donde se pueden trazar métricas cuantitativas sobre la ejecución de tu grafo y mostrar datos adicionales como imágenes que pasan a través del grafo. Tensorboard está disponible como parte de la instalación de TensorFlow.
+
+Para iniciar TensorBoard y apuntarlo a los registros de resumen producidos durante el entrenamiento, tanto durante como después de la ejecución, ejecutaremos los siguientes comandos desde Cloud Shell.
+
+1. Iniciamos TensorBoard:
+
+```
+tensorboard --logdir=$MODEL_DIR --port=8080
+```
+
+2. Seleccionamos "Vista previa en el puerto 8080" en el menú [Vista previa Web](https://cloud.google.com/shell/docs/features#web_preview) en la parte superior de la línea de comandos.
+
+![image-20200418145317415](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200418145317415.png)
+
+Mencionar que podemos cerrar TensorBoard en cualquier momento si ingresamos `ctrl+c` en la línea de comandos.
+
+
+
+![image-20200420090742346](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200420090742346.png)
+
+Como vemos en cuanto si filtramos por precisión, podemos ver datos como la fecha y la precisión media del resultado que se encuentra en torno a un 82%.
+
+
+
+###### Ejecutamos un trabajo de entrenamiento local en modo distribuido.
+
+Podemos probar si nuestro modelo funciona con el entorno de ejecución distribuido de AI Platform cuando ejecutemos un trabajo de entrenamiento local con la marca `--distributed`.
+
+1. Especificamos un directorio de salida y volvemos a establecer la variable `MODEL_DIR`. Con el comando siguiente, establecemos `MODEL_DIR` en un valor de `output-dist`.
+
+```
+MODEL_DIR=output-dist
+```
+
+
+
+2. Borramos el contenido del directorio de `output` por si aún contiene datos de una ejecución de entrenamiento anterior.
+
+```
+rm -rf $MODEL_DIR/*
+```
+
+
+
+3. Ejecutamos el comando `local train` con la opción `--distributed`. Asegúrate de colocar la marca encima del `--` que separa los argumentos del usuario de los argumentos de la línea de comandos.
+
+```
+gcloud ai-platform local train \
+    --module-name trainer.task \
+    --package-path trainer/ \
+    --job-dir $MODEL_DIR \
+    --distributed \
+    -- \
+    --train-files $TRAIN_DATA \
+    --eval-files $EVAL_DATA \
+    --train-steps 1000 \
+    --eval-steps 100
+```
+
+
+
+###### Visualización del resultado
+
+Los archivos de salida se escriben en el directorio que especifica `--job-dir`, que se estableció en `output-dist`:
+
+```
+ls -R output-dist/
+```
+
+Deberías ver un resultado similar a este:
+
+```
+checkpoint
+eval
+events.out.tfevents.1488577094.<host-name>
+export
+graph.pbtxt
+model.ckpt-1000.data-00000-of-00001
+model.ckpt-1000.index
+model.ckpt-1000.meta
+model.ckpt-2.data-00000-of-00001
+model.ckpt-2.index
+model.ckpt-2.meta
+
+output-dist//eval:
+events.out.tfevents.<timestamp>.<host-name>
+events.out.tfevents.<timestamp><host-name>
+events.out.tfevents.<timestamp>.<host-name>
+
+output-dist//export:
+census
+
+output-dist//export/census:
+<timestamp>
+
+output-dist//export/census/<timestamp>:
+saved_model.pb
+variables
+...
+```
+
+
+
+Y como vemos, el resultado es el esperado.
+
+![image-20200420095614415](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200420095614415.png)
+
+
+
+###### Configuramos nuestro depósito de Cloud Storage
+
+A continuación podemos demostrar cómo crear un depósito nuevo. Podemos usar un depósito existente, pero debe estar en la misma región en la que se planea ejecutar los trabajos de AI Platform. Además, si este no forma parte del proyecto que usas para ejecutar AI Platform, debemos [otorgar acceso a las cuentas de servicio de AI Platform](https://cloud.google.com/ml-engine/docs/tensorflow/working-with-cloud-storage#setup-different-project) de forma explícita.
+
+En primer lugar especificaremos un nombre para nuestro depósito nuevo. El nombre debe ser único en todos los depósitos en Cloud Storage. (En nuestro caso lo llamaremos tensorflowtest).
+
+![image-20200420130231141](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200420130231141.png)
+
+Comprobamos que el nombre ha sido establecido de una manera correcta.
+
+![image-20200420130353969](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200420130353969.png)
+
+
+
+Una vez se ha creado el nombre del depsito, podemos seleccionar una región para el depósito y establecer una variable de entorno `REGION`.
+
+Es recomendable usar la misma región en la que planeas ejecutar los trabajos de AI Platform. En el enlace de a continuación consultamos las [regiones disponibles](https://cloud.google.com/ml-engine/docs/tensorflow/regions) para servicios de AI Platform.
+
+Por ejemplo, con el código siguiente, se crea una `REGION` y se configura como `us-central1`:
+
+```sh
+REGION=us-central1
+```
+
+Y posteriormente creamos el depósito nuevo:
+
+```
+gsutil mb -l $REGION gs://$BUCKET_NAME
+```
+
+
+
+Tras ello podemos subir los archivos a nuestro depósito de Cloud Storage, algo que nos resultará de gran utilidad cuando queramos usar nuestros datos.
+
+- Usa `gsutil` para copiar los dos archivos a tu depósito de Cloud Storage.
+
+```
+gsutil cp -r data gs://$BUCKET_NAME/data
+```
+
+Con esta línea de comandos podemos "subir" los 2 archivos. Como vemos se suben de manera correcta los archivos.
+
+![image-20200421085211544](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200421085211544.png)
+
+
+
+- Configuramos las variables `TRAIN_DATA` y `EVAL_DATA` para apuntar a los archivos de Cloud Storage.
+
+```
+TRAIN_DATA=gs://$BUCKET_NAME/data/adult.data.csv
+EVAL_DATA=gs://$BUCKET_NAME/data/adult.test.csv
+```
+
+
+
+- Usamos `gsutil` de nuevo para copiar el archivo de prueba JSON `test.json`en tu depósito de Cloud Storage.
+
+```
+gsutil cp ../test.json gs://$BUCKET_NAME/data/test.json
+```
+
+![image-20200421085619423](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200421085619423.png)
+
+
+
+- Configuramos la variable `TEST_JSON` para apuntar al archivo.
+
+```
+TEST_JSON=gs://$BUCKET_NAME/data/test.json
+```
+
+
+
+###### Ejecutamos un trabajo de entrenamiento de instancia única en la nube
+
+Ya con un trabajo de entrenamiento validado que se ejecuta en modo de instancia única y distribuido, podemos ejecutar un trabajo de entrenamiento en la nube. Comenzaremos con la solicitud de un trabajo de entrenamiento de instancia única.
+
+Usamos el [nivel de escala](https://cloud.google.com/ml-engine/docs/tensorflow/machine-types) `BASIC` predeterminado para ejecutar un trabajo de entrenamiento de instancia única. La solicitud inicial de trabajo puede tardar unos minutos en iniciarse, pero los trabajos posteriores se ejecutan con mayor velocidad. Esto habilita una iteración rápida a medida que desarrollamos y validamos nuestro trabajo de entrenamiento.
+
+1. Seleccionamos un nombre para la ejecución de entrenamiento inicial que la distinga de cualquier ejecución de entrenamiento posterior. Por ejemplo, podemos agregar un número para representar la iteración.
+
+```
+JOB_NAME=census_single_1
+```
+
+2. A continuación especificaremos un directorio para el resultado que genera AI Platform mediante la configuración de una variable `OUTPUT_PATH` que vas a incluir cuando solicites trabajos de entrenamiento y predicción. La variable`OUTPUT_PATH` representa la ubicación de almacenamiento en Cloud Storage totalmente calificada para puntos de control de modelo, resúmenes y exportaciones. En el caso de que queramos también podemos usar la variable `BUCKET_NAME` que definimos en los pasos anteriores.
+
+Recomendamos usar el nombre del trabajo como el directorio de salida. Por ejemplo, la variable `OUTPUT_PATH` siguiente apunta a un directorio llamado `census_single_1`.
+
+```
+OUTPUT_PATH=gs://$BUCKET_NAME/$JOB_NAME
+```
+
+3. Ejecutamos el comando siguiente para enviar un trabajo de entrenamiento en la nube que use un proceso único. Esta vez, configura la etiqueta `--verbosity` en `DEBUG` para que podamos inspeccionar el resultado del registro completo y recuperar métricas de precisión y pérdida, entre otras estadísticas. El resultado también contiene una serie de otros mensajes de advertencia.
+
+```
+gcloud ai-platform jobs submit training $JOB_NAME \
+    --job-dir $OUTPUT_PATH \
+    --runtime-version 1.14 \
+    --module-name trainer.task \
+    --package-path trainer/ \
+    --region $REGION \
+    -- \
+    --train-files $TRAIN_DATA \
+    --eval-files $EVAL_DATA \
+    --train-steps 1000 \
+    --eval-steps 100 \
+    --verbosity DEBUG
+```
+
+En el entrenamiento en la nube, los resultados se producen en Cloud Storage. En este ejemplo, los resultados se guardan en `OUTPUT_PATH`; para enumerarlos, ejecutamos el comando siguiente:
+
+```
+gsutil ls -r $OUTPUT_PATH
+```
+
+Destacar que como ya hicimos en la parte superior tambien podemos utilizar Tensorboard para visualizar el resultado como ya hicimos anteriormente y también podemos utilizar lo que explicaremos a continuación.
+
+Tambien podemos ver los resultados usando Stackdriver.
+
+Los registros son una forma útil de comprender el comportamiento de tu código de entrenamiento en la nube. Cuando AI Platform ejecuta un trabajo de entrenamiento, captura todas las transmisiones `stdout` y `stderr` y las instrucciones de registro. Estos registros se almacenan en Stackdriver Logging y están visibles tanto durante como después de la ejecución.
+
+**NOTA:** La forma más fácil de encontrar los registros para tu trabajo es seleccionar tu trabajo en **AI Platform** > Trabajos en [GCP Console](https://console.cloud.google.com/ai-platform/jobs) y hacer clic en "Ver registros". Si dejas seleccionado “Todos los registros”, verás todos los registros de todos los trabajadores. También puedes seleccionar una tarea específica; `master-replica-0` brinda una descripción general de la ejecución del trabajo desde la perspectiva de la instancia principal.
+
+Debido a que seleccionaste el registro detallado, puedes inspeccionar el resultado del registro completo. Busca el término `accuracy` en los registros:
+
+![image-20200421103509021](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200421103509021.png)
+
+Como podemos ver tenemos un resultado de precisión de un 82% aproximadamente.
+
+
+
+![image-20200421104004009](C:\Users\erik_\AppData\Roaming\Typora\typora-user-images\image-20200421104004009.png)
+
+
+
+Tras saber todo lo necesario de como configurar un proyecto intentaremos saber como aplicar todas estas directrices a nuestro proyecto, donde en primer lugar nos centraremos en la correcta modificación de los csv.
+
+
+
+Si se quiere acceder al código dejamos el enlace aquí:  https://github.com/ErikMartrus/OCRPDF
+
+
 
 ### IBM Watson Machine Learning
 
